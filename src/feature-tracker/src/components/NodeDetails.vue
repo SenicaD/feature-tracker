@@ -183,6 +183,14 @@ export default defineComponent({
 
     watch(() => props.node, syncProjectFields, { immediate: true });
     watch(() => props.projects, syncProjectFields, { deep: true });
+    watch(projectName, (value) => {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return;
+      const match = props.projects.find((p) => p.name.toLowerCase() === normalized);
+      if (match) {
+        projectColor.value = match.color;
+      }
+    });
 
     function onNameChange(e: Event) {
       if (!props.node) return;

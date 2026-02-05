@@ -189,6 +189,11 @@ export default defineComponent({
     async refreshProjects() {
       try {
         this.projects = await listProjects();
+        if (this.projects.length === 0) return;
+        if (!this.selectedProject || !this.projects.includes(this.selectedProject)) {
+          this.selectedProject = this.projects[0];
+          await this.onProjectSelect();
+        }
       } catch (e) {
         this.showStatus("Failed to load projects");
       }
