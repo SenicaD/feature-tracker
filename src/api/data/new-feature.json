@@ -31,10 +31,10 @@
   ],
   "nodes": [
     {
-      "id": "fdb61cb3779e01d5",
+      "id": "c5226255649f1701",
       "label": "Feature 1",
       "name": "Feature 1",
-      "statusId": null,
+      "statusId": "implemented",
       "projectId": "foundation-1770317169043",
       "attributes": [
         {
@@ -44,14 +44,14 @@
       ],
       "position": {
         "x": 27.0,
-        "y": 87.0
+        "y": 163.0
       }
     },
     {
-      "id": "e869533a6e131c54",
+      "id": "c4002d5e5d2e3b33",
       "label": "Feature 2",
       "name": "Feature 2",
-      "statusId": null,
+      "statusId": "implemented",
       "projectId": "foundation-1770317169043",
       "attributes": [
         {
@@ -61,27 +61,33 @@
       ],
       "position": {
         "x": 257.0,
-        "y": 12.0
+        "y": 87.0
       }
     },
     {
-      "id": "f585ca53dca8f9b5",
+      "id": "24ccced0b422c350",
       "label": "Feature 3",
       "name": "Feature 3",
-      "statusId": null,
+      "statusId": "implemented",
       "projectId": "digitalplaybook-1770319806139",
       "attributes": [],
       "position": {
-        "x": 543.0,
-        "y": 103.0
+        "x": 487.0,
+        "y": 12.0
       }
     }
   ],
   "connections": [
     {
-      "sourceId": "fdb61cb3779e01d5",
+      "sourceId": "c5226255649f1701",
       "sourceOutput": "out",
-      "targetId": "e869533a6e131c54",
+      "targetId": "c4002d5e5d2e3b33",
+      "targetInput": "in"
+    },
+    {
+      "sourceId": "c4002d5e5d2e3b33",
+      "sourceOutput": "out",
+      "targetId": "24ccced0b422c350",
       "targetInput": "in"
     }
   ]

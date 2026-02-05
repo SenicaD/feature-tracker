@@ -107,17 +107,23 @@ export async function createEditor(
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
-  function applyStatusStyle(nodeId: string, statusId: string | null) {
+  function getNodeElement(nodeId: string) {
     const view = area.nodeViews.get(nodeId);
-    if (!view) return;
-    const el = view.element as HTMLElement;
+    if (!view) return null;
+    const wrapper = view.element as HTMLElement;
+    return (wrapper.querySelector(".node") as HTMLElement | null) ?? wrapper;
+  }
+
+  function applyStatusStyle(nodeId: string, statusId: string | null) {
+    const el = getNodeElement(nodeId);
+    if (!el) return;
     const status = statuses.find((s) => s.id === statusId);
     if (status) {
-      el.classList.add("has-status");
       el.style.setProperty("--status-color", status.color);
+      el.style.setProperty("--status-opacity", "1");
     } else {
-      el.classList.remove("has-status");
       el.style.removeProperty("--status-color");
+      el.style.setProperty("--status-opacity", "0");
     }
   }
 
@@ -134,9 +140,8 @@ export async function createEditor(
   }
 
   function applyProjectStyle(nodeId: string, projectId: string | null) {
-    const view = area.nodeViews.get(nodeId);
-    if (!view) return;
-    const el = view.element as HTMLElement;
+    const el = getNodeElement(nodeId);
+    if (!el) return;
     const project = featureProjects.find((p) => p.id === projectId);
     if (project) {
       el.classList.add("has-project");
@@ -155,9 +160,8 @@ export async function createEditor(
   }
 
   function applyFocusStyle(nodeId: string, projectId: string | null) {
-    const view = area.nodeViews.get(nodeId);
-    if (!view) return;
-    const el = view.element as HTMLElement;
+    const el = getNodeElement(nodeId);
+    if (!el) return;
     if (!focusProjectId) {
       el.classList.remove("is-dim");
       el.style.removeProperty("opacity");
@@ -237,7 +241,7 @@ export async function createEditor(
     }
     if (context.type === "pointerdown") {
       const target = context.data.event.target as HTMLElement;
-      if (target.classList.contains("area")) {
+      if (!target.closest(".node")) {
         canvasClickHandler?.();
       }
     }

@@ -53,22 +53,6 @@ a {
   margin: 4px 6px;
 }
 
-.rete .node.has-status::after {
-  content: "";
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--status-color, transparent);
-  border: 2px solid #0f172a;
-  box-shadow: 0 0 0 2px #0b1221;
-}
-
-.rete .node.has-status {
-  box-shadow: 0 0 0 2px var(--status-color, #38bdf8);
-}
 
 .rete .node.selected {
   outline: 2px solid #38bdf8;

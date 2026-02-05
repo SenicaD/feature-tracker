@@ -192,6 +192,7 @@ export default defineComponent({
 
     this.editor.onCanvasClick(() => {
       this.selectedNode = null;
+      this.showStatusManager = false;
     });
 
     await this.refreshProjects();

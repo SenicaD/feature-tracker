@@ -5,7 +5,10 @@
     :style="nodeStyles()"
     data-testid="node"
   >
-    <div class="title" data-testid="title">{{ data.label }}</div>
+    <div class="title" data-testid="title">
+      <span class="title-text">{{ data.label }}</span>
+      <span class="status-indicator" aria-hidden="true"></span>
+    </div>
 
     <div
       v-for="[key, output] in outputs()"
@@ -137,11 +140,24 @@ export default defineComponent({
   filter: saturate(0.6);
 }
 
+.node {
+  transition: opacity 220ms ease, filter 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
 .title {
   color: #f8fafc;
   font-size: 16px;
   font-weight: 600;
   padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.title-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .output {
@@ -160,6 +176,19 @@ export default defineComponent({
   font-size: 13px;
   margin: 6px;
   line-height: 20px;
+}
+
+.status-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--status-color, #38bdf8);
+  box-shadow:
+    0 0 0 2px rgba(15, 23, 42, 0.8),
+    0 0 10px var(--status-color, #38bdf8);
+  opacity: var(--status-opacity, 0);
+  flex: 0 0 auto;
+  transition: opacity 180ms ease;
 }
 
 .output-socket {
