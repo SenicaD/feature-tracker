@@ -21,6 +21,9 @@
         class="output-socket"
         :data="{ type: 'socket', side: 'output', key, nodeId: data.id, payload: output.socket }"
         :emit="emit"
+        :data-socket-node="data.id"
+        :data-socket-key="key"
+        data-socket-side="output"
         data-testid="output-socket"
       />
     </div>
@@ -44,6 +47,9 @@
         class="input-socket"
         :data="{ type: 'socket', side: 'input', key, nodeId: data.id, payload: input.socket }"
         :emit="emit"
+        :data-socket-node="data.id"
+        :data-socket-key="key"
+        data-socket-side="input"
         data-testid="input-socket"
       />
       <div v-show="!input.control || !input.showControl" class="input-title" data-testid="input-title">

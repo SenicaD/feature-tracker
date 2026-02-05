@@ -69,21 +69,29 @@ class NodePosition(BaseModel):
     y: float
 
 
+class PinPosition(BaseModel):
+    x: float
+    y: float
+
+
 class NodeData(BaseModel):
     id: str
     label: str
     name: str
     statusId: str | None = None
     projectId: str | None = None
+    notes: str = ""
     attributes: list[NodeAttribute]
     position: NodePosition
 
 
 class ConnectionData(BaseModel):
+    id: str | None = None
     sourceId: str
     sourceOutput: str
     targetId: str
     targetInput: str
+    pins: list[PinPosition] = Field(default_factory=list)
 
 
 class ProjectData(BaseModel):

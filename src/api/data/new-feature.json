@@ -31,11 +31,12 @@
   ],
   "nodes": [
     {
-      "id": "c5226255649f1701",
+      "id": "dd745e9ef5e362a8",
       "label": "Feature 1",
       "name": "Feature 1",
       "statusId": "implemented",
       "projectId": "foundation-1770317169043",
+      "notes": "",
       "attributes": [
         {
           "key": "test",
@@ -43,16 +44,17 @@
         }
       ],
       "position": {
-        "x": 27.0,
-        "y": 163.0
+        "x": -314.0,
+        "y": -69.0
       }
     },
     {
-      "id": "c4002d5e5d2e3b33",
+      "id": "7ac9516f23f1c624",
       "label": "Feature 2",
       "name": "Feature 2",
       "statusId": "implemented",
       "projectId": "foundation-1770317169043",
+      "notes": "",
       "attributes": [
         {
           "key": "test",
@@ -65,11 +67,12 @@
       }
     },
     {
-      "id": "24ccced0b422c350",
+      "id": "e0b6fe9a4a01ffbb",
       "label": "Feature 3",
       "name": "Feature 3",
       "statusId": "implemented",
       "projectId": "digitalplaybook-1770319806139",
+      "notes": "",
       "attributes": [],
       "position": {
         "x": 487.0,
@@ -79,16 +82,20 @@
   ],
   "connections": [
     {
-      "sourceId": "c5226255649f1701",
+      "id": "c5e378a74c93549f",
+      "sourceId": "dd745e9ef5e362a8",
       "sourceOutput": "out",
-      "targetId": "c4002d5e5d2e3b33",
-      "targetInput": "in"
+      "targetId": "7ac9516f23f1c624",
+      "targetInput": "in",
+      "pins": []
     },
     {
-      "sourceId": "c4002d5e5d2e3b33",
+      "id": "d73b746479f4657d",
+      "sourceId": "7ac9516f23f1c624",
       "sourceOutput": "out",
-      "targetId": "24ccced0b422c350",
-      "targetInput": "in"
+      "targetId": "e0b6fe9a4a01ffbb",
+      "targetInput": "in",
+      "pins": []
     }
   ]
 }

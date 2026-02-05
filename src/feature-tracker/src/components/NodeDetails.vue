@@ -82,6 +82,17 @@
           </div>
         </div>
 
+        <div class="space-y-1">
+          <label class="text-xs uppercase tracking-wide text-slate-400">Notes</label>
+          <textarea
+            :value="node.notes || ''"
+            rows="6"
+            class="w-full min-h-[140px] rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="Add notes for this feature..."
+            @input="onNotesChange"
+          ></textarea>
+        </div>
+
         <div class="flex items-center justify-between pt-2 border-t border-slate-800">
           <label class="text-xs uppercase tracking-wide text-slate-400">Attributes</label>
           <button
@@ -235,6 +246,12 @@ export default defineComponent({
       props.onSetStatus(props.node.id, statusId);
     }
 
+    function onNotesChange(e: Event) {
+      if (!props.node) return;
+      const input = e.target as HTMLTextAreaElement;
+      props.node.notes = input.value;
+    }
+
     function applyProject() {
       if (!props.node) return;
       props.onSetProject(props.node.id, projectName.value, projectColor.value);
@@ -255,6 +272,7 @@ export default defineComponent({
       onAttrKeyChange,
       onAttrValueChange,
       onStatusChange,
+      onNotesChange,
       applyProject,
       clearProject,
       close

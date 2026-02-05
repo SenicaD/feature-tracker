@@ -28,15 +28,18 @@ export interface NodeData {
   name: string;
   statusId?: string | null;
   projectId?: string | null;
+  notes?: string;
   attributes: NodeAttribute[];
   position: NodePosition;
 }
 
 export interface ConnectionData {
+  id?: string;
   sourceId: string;
   sourceOutput: string;
   targetId: string;
   targetInput: string;
+  pins?: NodePosition[];
 }
 
 export interface ProjectData {

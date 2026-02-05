@@ -1,11 +1,13 @@
 import { NodeEditor, type GetSchemes, ClassicPreset } from "rete";
 import { AreaPlugin, AreaExtensions } from "rete-area-plugin";
-import { ConnectionPlugin, Presets as ConnectionPresets } from "rete-connection-plugin";
+import { ConnectionPlugin, Presets as ConnectionPresets, type SocketData } from "rete-connection-plugin";
+import { ReroutePlugin, RerouteExtensions, type RerouteExtra } from "rete-connection-reroute-plugin";
 import { VuePlugin, Presets, type VueArea2D } from "rete-vue-plugin";
 import { getDOMSocketPosition } from "rete-render-utils";
 import { AutoArrangePlugin, Presets as ArrangePresets, ArrangeAppliers } from "rete-auto-arrange-plugin";
 import type { ProjectData, NodeData, ConnectionData, StatusDef, ProjectDef } from "./api";
 import CustomNode from "../components/CustomNode.vue";
+import SelectableConnection from "../components/SelectableConnection.vue";
 
 export type NodeAttribute = {
   key: string;
@@ -19,6 +21,7 @@ export class FeatureNode extends ClassicPreset.Node {
   attributes: NodeAttribute[] = [];
   statusId: string | null = null;
   projectId: string | null = null;
+  notes = "";
 
   constructor(label: string) {
     super(label);
@@ -26,10 +29,12 @@ export class FeatureNode extends ClassicPreset.Node {
   }
 }
 
-class Connection<N extends FeatureNode> extends ClassicPreset.Connection<N, N> {}
+class Connection<N extends FeatureNode> extends ClassicPreset.Connection<N, N> {
+  selected?: boolean;
+}
 
 type Schemes = GetSchemes<FeatureNode, Connection<FeatureNode>>;
-type AreaExtra = VueArea2D<Schemes>;
+type AreaExtra = VueArea2D<Schemes> | RerouteExtra;
 
 export type EditorController = {
   addNode: () => Promise<void>;
@@ -58,12 +63,38 @@ export async function createEditor(
   const connection = new ConnectionPlugin<Schemes, AreaExtra>();
   const render = new VuePlugin<Schemes, AreaExtra>();
   const arrange = new AutoArrangePlugin<Schemes>();
+  const reroute = new ReroutePlugin<Schemes>();
+
+  const selector = AreaExtensions.selector();
+  const accumulating = AreaExtensions.accumulateOnCtrl();
+
+  RerouteExtensions.selectablePins(reroute, selector, accumulating);
+
+  render.use(reroute);
+
+  render.addPreset(
+    Presets.reroute.setup({
+      pointerdown(id) {
+        reroute.unselect(id);
+        reroute.select(id);
+      },
+      contextMenu(id) {
+        reroute.remove(id);
+      },
+      translate(id, dx, dy) {
+        reroute.translate(id, dx, dy);
+      }
+    })
+  );
 
   render.addPreset(
     Presets.classic.setup({
       customize: {
         node() {
           return CustomNode;
+        },
+        connection() {
+          return SelectableConnection;
         }
       },
       socketPositionWatcher: getDOMSocketPosition({
@@ -215,16 +246,192 @@ export async function createEditor(
     }
   }
 
-  AreaExtensions.selectableNodes(
-    area,
-    AreaExtensions.selector(),
-    {
-      accumulating: AreaExtensions.accumulateOnCtrl()
+  let lastPointerEvent: PointerEvent | null = null;
+  const magneticRadius = 28;
+  const magneticSockets = new Map<HTMLElement, SocketData>();
+
+  function getFallbackSockets(): Array<{ element: HTMLElement; data: SocketData }> {
+    const elements = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        "[data-socket-node][data-socket-key][data-socket-side]"
+      )
+    );
+    return elements
+      .map((element) => {
+        const nodeId = element.dataset.socketNode;
+        const key = element.dataset.socketKey;
+        const side = element.dataset.socketSide as "input" | "output" | undefined;
+        if (!nodeId || !key || (side !== "input" && side !== "output")) return null;
+        const data: SocketData = {
+          element,
+          type: "socket",
+          nodeId,
+          side,
+          key
+        };
+        return { element, data };
+      })
+      .filter((item): item is { element: HTMLElement; data: SocketData } => Boolean(item));
+  }
+
+  function findNearestSocket(
+    clientX: number,
+    clientY: number,
+    initial: SocketData
+  ): { element: HTMLElement; data: SocketData } | null {
+    let nearest: { element: HTMLElement; data: SocketData } | null = null;
+    let minDistance = magneticRadius;
+    const sockets =
+      magneticSockets.size > 0
+        ? Array.from(magneticSockets.entries()).map(([element, data]) => ({ element, data }))
+        : getFallbackSockets();
+
+    for (const { element, data: socket } of sockets) {
+      if (!element.isConnected) continue;
+      if (
+        socket.nodeId === initial.nodeId &&
+        socket.key === initial.key &&
+        socket.side === initial.side
+      ) {
+        continue;
+      }
+      if (socket.side === initial.side) continue;
+      const rect = element.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = centerX - clientX;
+      const dy = centerY - clientY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= minDistance) {
+        minDistance = distance;
+        nearest = { element, data: socket };
+      }
     }
-  );
+    return nearest;
+  }
+
+  async function enforceConnectionLimits(
+    source: FeatureNode,
+    sourceKey: string,
+    target: FeatureNode,
+    targetKey: string
+  ) {
+    const output = source.outputs[sourceKey];
+    const input = target.inputs[targetKey];
+    if (output && output.multipleConnections === false) {
+      for (const conn of editor.getConnections()) {
+        if (conn.source === source.id && conn.sourceOutput === sourceKey) {
+          await editor.removeConnection(conn.id);
+        }
+      }
+    }
+    if (input && input.multipleConnections !== true) {
+      for (const conn of editor.getConnections()) {
+        if (conn.target === target.id && conn.targetInput === targetKey) {
+          await editor.removeConnection(conn.id);
+        }
+      }
+    }
+  }
+
+  async function tryMagneticConnection(initial: SocketData) {
+    if (!lastPointerEvent) return;
+    const nearest = findNearestSocket(
+      lastPointerEvent.clientX,
+      lastPointerEvent.clientY,
+      initial
+    );
+    if (!nearest) return;
+    const from = initial;
+    const to = nearest.data;
+    if (from.side === to.side) return;
+    const [source, target] = from.side === "output" ? [from, to] : [to, from];
+    const sourceNode = editor.getNode(source.nodeId) as FeatureNode | undefined;
+    const targetNode = editor.getNode(target.nodeId) as FeatureNode | undefined;
+    if (!sourceNode || !targetNode) return;
+    await enforceConnectionLimits(sourceNode, source.key, targetNode, target.key);
+    await editor.addConnection(
+      new Connection(sourceNode, source.key as never, targetNode, target.key as never)
+    );
+  }
+
+  function findConnectionHit(event: PointerEvent) {
+    const path = event.composedPath();
+    for (const [id, view] of area.connectionViews.entries()) {
+      if (path.includes(view.element)) {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  AreaExtensions.selectableNodes(area, selector, { accumulating });
 
   AreaExtensions.simpleNodesOrder(area);
 
+  const recordPointerEvent = (event: PointerEvent) => {
+    lastPointerEvent = event;
+  };
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("pointermove", recordPointerEvent);
+    window.addEventListener("pointerup", recordPointerEvent);
+  }
+
+  connection.addPipe(async (context) => {
+    if (context.type === "render" && context.data.type === "socket") {
+      magneticSockets.set(context.data.element, context.data);
+    }
+    if (context.type === "unmount") {
+      magneticSockets.delete(context.data.element);
+    }
+    if (context.type === "connectiondrop") {
+      const { socket, created, initial } = context.data;
+      if (!socket && !created) {
+        await tryMagneticConnection(initial);
+      }
+    }
+    return context;
+  });
+
+  const handleDelete = async (event: KeyboardEvent) => {
+    if (event.key !== "Delete" && event.key !== "Backspace") return;
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable)
+    ) {
+      return;
+    }
+
+    let removed = false;
+    const pins = reroute.pins.getPins();
+    for (const pin of pins) {
+      if (pin.selected) {
+        await reroute.remove(pin.id);
+        removed = true;
+      }
+    }
+
+    for (const conn of editor.getConnections() as Connection[]) {
+      if (conn.selected) {
+        await editor.removeConnection(conn.id);
+        await selector.remove({ id: conn.id, label: "connection" });
+        removed = true;
+      }
+    }
+
+    if (removed) {
+      event.preventDefault();
+    }
+  };
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("keydown", handleDelete);
+  }
 
   // -----------------------------
   // CLICK HANDLING
@@ -233,6 +440,9 @@ export async function createEditor(
   let canvasClickHandler: (() => void) | null = null;
 
   area.addPipe((context) => {
+    if (context.type === "pointermove" || context.type === "pointerup") {
+      lastPointerEvent = context.data.event;
+    }
     if (context.type === "nodepicked") {
       const node = editor.getNode(context.data.id);
       if (node && nodeClickHandler) {
@@ -240,7 +450,29 @@ export async function createEditor(
       }
     }
     if (context.type === "pointerdown") {
-      const target = context.data.event.target as HTMLElement;
+      const event = context.data.event;
+      lastPointerEvent = event;
+      const connectionId = findConnectionHit(event);
+      if (connectionId) {
+        const connectionItem = editor.getConnection(connectionId) as Connection | undefined;
+        if (connectionItem) {
+          selector.add(
+            {
+              id: connectionId,
+              label: "connection",
+              translate() {},
+              unselect() {
+                connectionItem.selected = false;
+                area.update("connection", connectionId);
+              }
+            },
+            accumulating.active()
+          );
+          connectionItem.selected = true;
+          area.update("connection", connectionId);
+        }
+      }
+      const target = event.target as HTMLElement;
       if (!target.closest(".node")) {
         canvasClickHandler?.();
       }
@@ -286,6 +518,7 @@ export async function createEditor(
         name: node.name,
         statusId: node.statusId ?? null,
         projectId: node.projectId ?? null,
+        notes: node.notes ?? "",
         attributes: [...node.attributes],
         position,
       });
@@ -294,10 +527,15 @@ export async function createEditor(
     const connections: ConnectionData[] = [];
     for (const conn of editor.getConnections()) {
       connections.push({
+        id: conn.id,
         sourceId: conn.source,
         sourceOutput: conn.sourceOutput,
         targetId: conn.target,
         targetInput: conn.targetInput,
+        pins: reroute.pins.getPins(conn.id).map((pin) => ({
+          x: pin.position.x,
+          y: pin.position.y
+        }))
       });
     }
 
@@ -330,6 +568,7 @@ export async function createEditor(
       node.attributes = [...nodeData.attributes];
       node.statusId = nodeData.statusId ?? null;
       node.projectId = nodeData.projectId ?? null;
+      node.notes = nodeData.notes ?? "";
       node.addInput("in", new ClassicPreset.Input(socket));
       node.addOutput("out", new ClassicPreset.Output(socket));
       node.addControl("text", new ClassicPreset.InputControl("text", { initial: "" }));
@@ -350,7 +589,15 @@ export async function createEditor(
         const target = editor.getNode(targetId);
         if (source && target) {
           const conn = new Connection(source, connData.sourceOutput, target, connData.targetInput);
+          if (connData.id) {
+            conn.id = connData.id;
+          }
           await editor.addConnection(conn);
+          if (connData.pins?.length) {
+            connData.pins.forEach((pin, index) => {
+              reroute.add(conn.id, { x: pin.x, y: pin.y }, index);
+            });
+          }
         }
       }
     }
@@ -395,6 +642,11 @@ export async function createEditor(
     destroy() {
       nodeClickHandler = null;
       canvasClickHandler = null;
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pointermove", recordPointerEvent);
+        window.removeEventListener("pointerup", recordPointerEvent);
+        window.removeEventListener("keydown", handleDelete);
+      }
       area.destroy();
     }
   };

@@ -15,6 +15,7 @@
     "rete-area-plugin": "^2.1.5",
     "rete-auto-arrange-plugin": "^2.0.2",
     "rete-connection-plugin": "^2.0.5",
+    "rete-connection-reroute-plugin": "^2.0.3",
     "rete-react-plugin": "^2.1.0",
     "rete-render-utils": "^2.0.3",
     "rete-vue-plugin": "^2.1.2",
