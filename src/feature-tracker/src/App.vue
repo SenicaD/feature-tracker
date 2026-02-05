@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
-    <header class="flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900/70 backdrop-blur">
+    <header class="relative z-50 flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900/70 backdrop-blur">
       <select
         v-model="selectedProject"
         @change="onProjectSelect"
@@ -43,16 +43,62 @@
       >
         Auto Arrange
       </button>
-      <select
-        v-model="focusProjectId"
-        @change="applyFocusProject"
-        class="h-10 min-w-[160px] rounded-md border border-slate-700 bg-slate-950/70 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-      >
-        <option value="">All Projects</option>
-        <option v-for="project in featureProjects" :key="project.id" :value="project.id">
-          Focus: {{ project.name }}
-        </option>
-      </select>
+      <div class="relative">
+        <button
+          class="inline-flex h-10 items-center justify-center rounded-md border border-slate-700 bg-slate-950/70 px-3 text-sm font-medium text-slate-100 hover:bg-slate-800"
+          @click="toggleFilterMenu"
+          @pointerdown.stop
+          @dblclick.stop
+          data-filter-button
+        >
+          Filters
+          <span v-if="activeFilters.length" class="ml-2 rounded-full bg-slate-800 px-2 py-0.5 text-xs">
+            {{ activeFilters.length }}
+          </span>
+        </button>
+        <div
+          v-if="showFilterMenu"
+          class="absolute left-0 mt-2 w-64 rounded-lg border border-slate-800 bg-slate-900 shadow-xl z-50"
+          @pointerdown.stop
+          @pointerdown.capture="debugFilterEvent('pointerdown', $event)"
+          @click.capture="debugFilterEvent('click', $event)"
+          @dblclick.stop
+          data-filter-menu
+        >
+          <div class="flex items-center justify-between px-3 py-2 border-b border-slate-800">
+            <span class="text-xs uppercase tracking-wide text-slate-400">Filters</span>
+            <button
+              class="text-xs px-2 py-1 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800"
+              @click="clearFilters"
+            >
+              Clear
+            </button>
+          </div>
+          <div class="max-h-64 overflow-auto p-2 space-y-1 text-sm">
+            <div
+              v-for="option in filterOptions"
+              :key="option.id"
+              role="menuitemcheckbox"
+              :aria-checked="activeFilters.includes(option.id)"
+              tabindex="0"
+              class="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left hover:bg-slate-800 cursor-pointer"
+              @click="toggleFilter(option.id)"
+              @keydown.enter.prevent="toggleFilter(option.id)"
+              @keydown.space.prevent="toggleFilter(option.id)"
+            >
+              <Checkbox
+                :model-value="activeFilters.includes(option.id)"
+                as="span"
+                class="pointer-events-none"
+              />
+              <span class="text-slate-100">{{ option.label }}</span>
+            </div>
+            <div v-if="filterOptions.length === 0" class="px-2 py-4 text-xs text-slate-500">
+              No projects or tags yet.
+            </div>
+          </div>
+        </div>
+      </div>
       <button
         class="inline-flex h-10 items-center justify-center rounded-md border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-100 hover:bg-slate-800"
         @click="toggleStatusManager"
@@ -61,6 +107,7 @@
       </button>
 
       <span v-if="statusMessage" class="ml-auto text-sm text-sky-300">{{ statusMessage }}</span>
+      <span class="ml-3 text-xs text-slate-500">UI build: {{ buildId }}</span>
     </header>
 
     <div class="pointer-events-none fixed inset-y-0 left-0 flex">
@@ -147,8 +194,10 @@
         v-model:node="selectedNode"
         :statuses="statuses"
         :projects="featureProjects"
+        :available-tags="availableTags"
         :on-set-status="onSetStatus"
         :on-set-project="onSetProject"
+        :on-set-tags="onSetTags"
       />
     </main>
   </div>
@@ -156,12 +205,15 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import { createEditor, type EditorController, type FeatureNode } from "./typescript/basic";
+import { createEditor, type EditorController, type FeatureNode, type FocusFilters } from "./typescript/basic";
 import { listProjects, loadProject, saveProject, deleteProject, STATUS_PALETTE, type StatusDef, type ProjectData, type ProjectDef } from "./typescript/api";
 import NodeDetails from "./components/NodeDetails.vue";
+import { Checkbox } from "./components/ui/checkbox";
+
+const BUILD_ID = new Date().toISOString();
 
 export default defineComponent({
-  components: { NodeDetails },
+  components: { NodeDetails, Checkbox },
 
   data() {
     return {
@@ -171,16 +223,34 @@ export default defineComponent({
       selectedProject: "",
       statuses: [] as StatusDef[],
       featureProjects: [] as ProjectDef[],
-      focusProjectId: "",
+      activeFilters: [] as string[],
+      showFilterMenu: false,
+      availableTags: [] as string[],
       STATUS_PALETTE,
       showStatusManager: false,
       newStatusName: "",
       newStatusColor: STATUS_PALETTE[0] ?? "#10B981",
       statusMessage: "",
+      buildId: BUILD_ID,
     };
   },
 
+  computed: {
+    filterOptions(): Array<{ id: string; label: string }> {
+      const projectOptions = this.featureProjects.map((project) => ({
+        id: `project:${project.id}`,
+        label: `Project: ${project.name}`
+      }));
+      const tagOptions = this.availableTags.map((tag) => ({
+        id: `tag:${tag}`,
+        label: `Tag: ${tag}`
+      }));
+      return [...projectOptions, ...tagOptions];
+    }
+  },
+
   async mounted() {
+    console.log("[ui] build", this.buildId);
     const container = this.$refs.rete as HTMLElement;
     if (!container) return;
 
@@ -225,6 +295,7 @@ export default defineComponent({
         const data = await loadProject(this.selectedProject);
         await this.applyProjectData(data);
         this.selectedNode = null;
+        this.showFilterMenu = false;
         this.showStatus(`Loaded: ${this.selectedProject}`);
       } catch (e) {
         this.showStatus("Failed to load project");
@@ -259,6 +330,7 @@ export default defineComponent({
         await this.refreshProjects();
         this.selectedProject = name;
         this.selectedNode = null;
+        this.showFilterMenu = false;
         this.showStatus(`Created: ${name}`);
       } catch (e) {
         this.showStatus("Failed to create project");
@@ -289,6 +361,9 @@ export default defineComponent({
         await this.refreshProjects();
         this.selectedProject = "";
         this.selectedNode = null;
+        this.activeFilters = [];
+        this.showFilterMenu = false;
+        this.editor?.setFocusFilters({ projects: [], tags: [] });
         this.showStatus("Project deleted");
       } catch (e) {
         this.showStatus("Failed to delete project");
@@ -311,21 +386,82 @@ export default defineComponent({
       }
     },
 
-    applyFocusProject() {
-      this.editor?.setFocusProject(this.focusProjectId || null);
+    toggleFilterMenu() {
+      this.showFilterMenu = !this.showFilterMenu;
+      if (this.showFilterMenu) {
+        this.syncAvailableTags();
+        this.sanitizeFilters();
+      }
+    },
+
+    toggleFilter(id: string) {
+      console.log("[filters] toggleFilter", id);
+      if (this.activeFilters.includes(id)) {
+        this.activeFilters = this.activeFilters.filter((value) => value !== id);
+      } else {
+        this.activeFilters = [...this.activeFilters, id];
+      }
+      this.applyFilters();
+    },
+
+    debugFilterEvent(type: string, event: Event) {
+      const target = event.target as HTMLElement | null;
+      console.log(`[filters] ${type}`, {
+        target: target?.tagName,
+        className: target?.className,
+      });
+    },
+
+
+    clearFilters() {
+      this.activeFilters = [];
+      this.applyFilters();
+    },
+
+    applyFilters() {
+      const filters: FocusFilters = { projects: [], tags: [] };
+      for (const id of this.activeFilters) {
+        if (id.startsWith("project:")) {
+          filters.projects.push(id.replace("project:", ""));
+        } else if (id.startsWith("tag:")) {
+          filters.tags.push(id.replace("tag:", ""));
+        }
+      }
+      this.editor?.setFocusFilters(filters);
+    },
+
+    syncAvailableTags() {
+      const tags = new Set<string>();
+      const nodes = this.editor?.getNodes?.() ?? [];
+      for (const node of nodes) {
+        const list = (node as any).tags ?? [];
+        for (const tag of list) {
+          if (tag) tags.add(tag);
+        }
+      }
+      this.availableTags = Array.from(tags).sort((a, b) => a.localeCompare(b));
+    },
+
+    sanitizeFilters() {
+      const allowed = new Set(this.filterOptions.map((option) => option.id));
+      if (allowed.size === 0) {
+        this.activeFilters = [];
+        this.applyFilters();
+        return;
+      }
+      this.activeFilters = this.activeFilters.filter((id) => allowed.has(id));
+      this.applyFilters();
     },
 
     async applyProjectData(data: ProjectData) {
       this.statuses = data.statuses ?? this.defaultStatuses();
       this.featureProjects = data.featureProjects ?? [];
-      if (this.focusProjectId && !this.featureProjects.some((p) => p.id === this.focusProjectId)) {
-        this.focusProjectId = "";
-      }
       const withStatuses = { ...data, statuses: this.statuses, featureProjects: this.featureProjects };
       await this.editor?.importState(withStatuses);
       this.editor?.setStatuses(this.statuses);
       this.editor?.setProjects(this.featureProjects);
-      this.editor?.setFocusProject(this.focusProjectId || null);
+      this.syncAvailableTags();
+      this.sanitizeFilters();
     },
 
     onSetStatus(nodeId: string, statusId: string | null) {
@@ -372,6 +508,16 @@ export default defineComponent({
       if (this.selectedNode && this.selectedNode.id === nodeId) {
         (this.selectedNode as any).projectId = projectId;
       }
+      this.sanitizeFilters();
+    },
+
+    onSetTags(nodeId: string, tags: string[]) {
+      this.editor?.setNodeTags(nodeId, tags);
+      if (this.selectedNode && this.selectedNode.id === nodeId) {
+        (this.selectedNode as any).tags = tags;
+      }
+      this.syncAvailableTags();
+      this.sanitizeFilters();
     },
 
     defaultStatuses(): StatusDef[] {

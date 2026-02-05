@@ -22,6 +22,7 @@ export class FeatureNode extends ClassicPreset.Node {
   statusId: string | null = null;
   projectId: string | null = null;
   notes = "";
+  tags: string[] = [];
 
   constructor(label: string) {
     super(label);
@@ -44,13 +45,19 @@ export type EditorController = {
   setNodeStatus: (nodeId: string, statusId: string | null) => void;
   setProjects: (projects: ProjectDef[]) => void;
   setNodeProject: (nodeId: string, projectId: string | null) => void;
-  setFocusProject: (projectId: string | null) => void;
+  setNodeTags: (nodeId: string, tags: string[]) => void;
+  setFocusFilters: (filters: FocusFilters) => void;
   getNodes: () => FeatureNode[];
   layout: (animate?: boolean) => Promise<void>;
   exportState: () => Promise<ProjectData>;
   importState: (data: ProjectData) => Promise<void>;
   clear: () => Promise<void>;
   destroy: () => void;
+};
+
+export type FocusFilters = {
+  projects: string[];
+  tags: string[];
 };
 
 export async function createEditor(
@@ -127,7 +134,8 @@ export async function createEditor(
   const statusIds = () => new Set(statuses.map((s) => s.id));
   let featureProjects: ProjectDef[] = [];
   const projectIds = () => new Set(featureProjects.map((p) => p.id));
-  let focusProjectId: string | null = null;
+  let focusProjectIds = new Set<string>();
+  let focusTags: string[] = [];
 
   function hexToRgba(hex: string, alpha: number) {
     const value = hex.replace("#", "");
@@ -190,16 +198,20 @@ export async function createEditor(
     }
   }
 
-  function applyFocusStyle(nodeId: string, projectId: string | null) {
-    const el = getNodeElement(nodeId);
+  function applyFocusStyle(node: FeatureNode) {
+    const el = getNodeElement(node.id);
     if (!el) return;
-    if (!focusProjectId) {
+    const hasFilters = focusProjectIds.size > 0 || focusTags.length > 0;
+    if (!hasFilters) {
       el.classList.remove("is-dim");
       el.style.removeProperty("opacity");
       el.style.removeProperty("filter");
       return;
     }
-    if (projectId !== focusProjectId) {
+    const projectMatch = node.projectId ? focusProjectIds.has(node.projectId) : false;
+    const nodeTags = (node.tags ?? []).map((tag) => tag.toLowerCase());
+    const tagMatch = focusTags.some((tag) => nodeTags.includes(tag));
+    if (!(projectMatch || tagMatch)) {
       el.classList.add("is-dim");
       el.style.opacity = "0.3";
       el.style.filter = "saturate(0.6)";
@@ -218,7 +230,7 @@ export async function createEditor(
         node.projectId = null;
       }
       applyProjectStyle(node.id, node.projectId);
-      applyFocusStyle(node.id, node.projectId);
+      applyFocusStyle(node);
     }
   }
 
@@ -236,13 +248,21 @@ export async function createEditor(
     const allowed = projectIds();
     node.projectId = projectId && allowed.has(projectId) ? projectId : null;
     applyProjectStyle(node.id, node.projectId);
-    applyFocusStyle(node.id, node.projectId);
+    applyFocusStyle(node);
   }
 
-  function setFocusProject(projectId: string | null) {
-    focusProjectId = projectId;
+  function setNodeTags(nodeId: string, tags: string[]) {
+    const node = editor.getNode(nodeId) as FeatureNode | undefined;
+    if (!node) return;
+    node.tags = tags;
+    applyFocusStyle(node);
+  }
+
+  function setFocusFilters(filters: FocusFilters) {
+    focusProjectIds = new Set(filters.projects ?? []);
+    focusTags = (filters.tags ?? []).map((tag) => tag.toLowerCase());
     for (const node of editor.getNodes() as FeatureNode[]) {
-      applyFocusStyle(node.id, node.projectId);
+      applyFocusStyle(node);
     }
   }
 
@@ -473,6 +493,14 @@ export async function createEditor(
         }
       }
       const target = event.target as HTMLElement;
+      const path = event.composedPath();
+      const inFilterMenu = path.some((entry) => {
+        if (!(entry instanceof HTMLElement)) return false;
+        return entry.hasAttribute("data-filter-menu") || entry.hasAttribute("data-filter-button");
+      });
+      if (inFilterMenu || target.closest("[data-filter-menu]") || target.closest("[data-filter-button]")) {
+        return context;
+      }
       if (!target.closest(".node")) {
         canvasClickHandler?.();
       }
@@ -500,7 +528,7 @@ export async function createEditor(
     await area.translate(node.id, { x: 100 + count * 40, y: 100 });
     applyStatusStyle(node.id, null);
     applyProjectStyle(node.id, null);
-    applyFocusStyle(node.id, null);
+    applyFocusStyle(node);
   }
 
   // Seed one node
@@ -519,6 +547,7 @@ export async function createEditor(
         statusId: node.statusId ?? null,
         projectId: node.projectId ?? null,
         notes: node.notes ?? "",
+        tags: [...(node.tags ?? [])],
         attributes: [...node.attributes],
         position,
       });
@@ -569,6 +598,7 @@ export async function createEditor(
       node.statusId = nodeData.statusId ?? null;
       node.projectId = nodeData.projectId ?? null;
       node.notes = nodeData.notes ?? "";
+      node.tags = [...(nodeData.tags ?? [])];
       node.addInput("in", new ClassicPreset.Input(socket));
       node.addOutput("out", new ClassicPreset.Output(socket));
       node.addControl("text", new ClassicPreset.InputControl("text", { initial: "" }));
@@ -577,7 +607,7 @@ export async function createEditor(
       await area.translate(node.id, nodeData.position);
       applyStatusStyle(node.id, node.statusId);
       applyProjectStyle(node.id, node.projectId);
-      applyFocusStyle(node.id, node.projectId);
+      applyFocusStyle(node);
       idMap.set(nodeData.id, node.id);
     }
 
@@ -605,7 +635,7 @@ export async function createEditor(
     // Re-run to clear any orphaned assignments now that nodes exist
     setStatuses(statuses);
     setProjects(featureProjects);
-    setFocusProject(focusProjectId);
+    setFocusFilters({ projects: Array.from(focusProjectIds), tags: focusTags });
 
     if (editor.getNodes().length > 0) {
       AreaExtensions.zoomAt(area, editor.getNodes());
@@ -631,7 +661,8 @@ export async function createEditor(
     setNodeStatus,
     setProjects,
     setNodeProject,
-    setFocusProject,
+    setNodeTags,
+    setFocusFilters,
     getNodes() {
       return editor.getNodes() as FeatureNode[];
     },

@@ -31,12 +31,16 @@
   ],
   "nodes": [
     {
-      "id": "dd745e9ef5e362a8",
+      "id": "86d301959835892d",
       "label": "Feature 1",
       "name": "Feature 1",
       "statusId": "implemented",
       "projectId": "foundation-1770317169043",
       "notes": "",
+      "tags": [
+        "API",
+        "DOC"
+      ],
       "attributes": [
         {
           "key": "test",
@@ -49,12 +53,13 @@
       }
     },
     {
-      "id": "7ac9516f23f1c624",
+      "id": "dd1896339eec9113",
       "label": "Feature 2",
       "name": "Feature 2",
       "statusId": "implemented",
       "projectId": "foundation-1770317169043",
       "notes": "",
+      "tags": [],
       "attributes": [
         {
           "key": "test",
@@ -67,33 +72,38 @@
       }
     },
     {
-      "id": "e0b6fe9a4a01ffbb",
+      "id": "e1a7be39e5aa7e3f",
       "label": "Feature 3",
       "name": "Feature 3",
-      "statusId": "implemented",
+      "statusId": "aspirational",
       "projectId": "digitalplaybook-1770319806139",
       "notes": "",
+      "tags": [
+        "API",
+        "DOC",
+        "Test"
+      ],
       "attributes": [],
       "position": {
-        "x": 487.0,
-        "y": 12.0
+        "x": 486.0,
+        "y": 11.0
       }
     }
   ],
   "connections": [
     {
-      "id": "c5e378a74c93549f",
-      "sourceId": "dd745e9ef5e362a8",
+      "id": "d73b746479f4657d",
+      "sourceId": "dd1896339eec9113",
       "sourceOutput": "out",
-      "targetId": "7ac9516f23f1c624",
+      "targetId": "e1a7be39e5aa7e3f",
       "targetInput": "in",
       "pins": []
     },
     {
-      "id": "d73b746479f4657d",
-      "sourceId": "7ac9516f23f1c624",
+      "id": "9c222608363b67d3",
+      "sourceId": "86d301959835892d",
       "sourceOutput": "out",
-      "targetId": "e0b6fe9a4a01ffbb",
+      "targetId": "dd1896339eec9113",
       "targetInput": "in",
       "pins": []
     }

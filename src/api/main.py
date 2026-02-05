@@ -81,6 +81,7 @@ class NodeData(BaseModel):
     statusId: str | None = None
     projectId: str | None = None
     notes: str = ""
+    tags: list[str] = Field(default_factory=list)
     attributes: list[NodeAttribute]
     position: NodePosition
 

@@ -29,6 +29,7 @@ export interface NodeData {
   statusId?: string | null;
   projectId?: string | null;
   notes?: string;
+  tags?: string[];
   attributes: NodeAttribute[];
   position: NodePosition;
 }
