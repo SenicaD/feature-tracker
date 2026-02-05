@@ -1,0 +1,116 @@
+{
+  "name": "new-feature-2",
+  "nodes": [
+    {
+      "id": "418525d15b38963a",
+      "label": "Feature 1",
+      "name": "Feature 1",
+      "attributes": [],
+      "position": {
+        "x": -157.0,
+        "y": -11.0
+      }
+    },
+    {
+      "id": "401752d74e638f57",
+      "label": "Feature 2",
+      "name": "Feature 2",
+      "attributes": [],
+      "position": {
+        "x": 180.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "459d509af4a7453f",
+      "label": "Feature 3",
+      "name": "Feature 3",
+      "attributes": [],
+      "position": {
+        "x": 220.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "748799c17fac7dc8",
+      "label": "Feature 4",
+      "name": "Feature 4",
+      "attributes": [],
+      "position": {
+        "x": 260.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "9a7aa769ca6ddcc8",
+      "label": "Feature 5",
+      "name": "Feature 5",
+      "attributes": [],
+      "position": {
+        "x": 300.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "7770052a5b48cb44",
+      "label": "Feature 6",
+      "name": "Feature 6",
+      "attributes": [],
+      "position": {
+        "x": 340.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "8127c78c392f0fc7",
+      "label": "Feature 7",
+      "name": "Feature 7",
+      "attributes": [],
+      "position": {
+        "x": 380.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "42f4f958363f97c1",
+      "label": "Feature 8",
+      "name": "Feature 8",
+      "attributes": [],
+      "position": {
+        "x": 420.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "60e3f05169b75937",
+      "label": "Feature 9",
+      "name": "Feature 9",
+      "attributes": [],
+      "position": {
+        "x": 460.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "d7a3afdfe2d47244",
+      "label": "Feature 10",
+      "name": "Feature 10",
+      "attributes": [],
+      "position": {
+        "x": 500.0,
+        "y": 100.0
+      }
+    },
+    {
+      "id": "d2fdb8dc663178ee",
+      "label": "Feature 11",
+      "name": "Feature 11",
+      "attributes": [],
+      "position": {
+        "x": 540.0,
+        "y": 100.0
+      }
+    }
+  ],
+  "connections": []
+}

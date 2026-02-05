@@ -1,0 +1,33 @@
+{
+  "name": "new-feature",
+  "nodes": [
+    {
+      "id": "1afd8d2853efd29e",
+      "label": "Feature 1",
+      "name": "Feature 1",
+      "attributes": [],
+      "position": {
+        "x": -181.0,
+        "y": 20.0
+      }
+    },
+    {
+      "id": "c96251c54deaf4b1",
+      "label": "Feature 2",
+      "name": "Feature 2",
+      "attributes": [],
+      "position": {
+        "x": 180.0,
+        "y": 100.0
+      }
+    }
+  ],
+  "connections": [
+    {
+      "sourceId": "1afd8d2853efd29e",
+      "sourceOutput": "out",
+      "targetId": "c96251c54deaf4b1",
+      "targetInput": "in"
+    }
+  ]
+}

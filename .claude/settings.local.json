@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tmux has-session:*)",
+      "Bash(tmux new-session:*)",
+      "Bash(tmux send-keys:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(python3 -m venv:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Skill(scheduler)",
+      "Bash(chmod:*)",
+      "Bash(apt-get install:*)",
+      "Bash(yum install:*)",
+      "Bash(apk add:*)",
+      "Bash(service cron start:*)",
+      "Bash(service cron status:*)",
+      "Bash(crontab:*)",
+      "Bash(wc:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(npm view:*)",
+      "Bash(tmux kill-session:*)",
+      "Bash(tmux list-sessions:*)",
+      "Bash(pkill:*)",
+      "Bash(pgrep:*)",
+      "Bash(kill:*)"
+    ]
+  }
+}
