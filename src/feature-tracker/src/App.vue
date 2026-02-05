@@ -38,6 +38,22 @@
         Add Feature
       </button>
       <button
+        class="inline-flex h-10 items-center justify-center rounded-md border border-slate-700 bg-slate-800 px-3 text-sm font-medium text-slate-100 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        @click="autoArrange"
+      >
+        Auto Arrange
+      </button>
+      <select
+        v-model="focusProjectId"
+        @change="applyFocusProject"
+        class="h-10 min-w-[160px] rounded-md border border-slate-700 bg-slate-950/70 px-3 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+      >
+        <option value="">All Projects</option>
+        <option v-for="project in featureProjects" :key="project.id" :value="project.id">
+          Focus: {{ project.name }}
+        </option>
+      </select>
+      <button
         class="inline-flex h-10 items-center justify-center rounded-md border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-100 hover:bg-slate-800"
         @click="toggleStatusManager"
       >
@@ -155,6 +171,7 @@ export default defineComponent({
       selectedProject: "",
       statuses: [] as StatusDef[],
       featureProjects: [] as ProjectDef[],
+      focusProjectId: "",
       STATUS_PALETTE,
       showStatusManager: false,
       newStatusName: "",
@@ -191,7 +208,9 @@ export default defineComponent({
         this.projects = await listProjects();
         if (this.projects.length === 0) return;
         if (!this.selectedProject || !this.projects.includes(this.selectedProject)) {
-          this.selectedProject = this.projects[0];
+          const first = this.projects[0];
+          if (!first) return;
+          this.selectedProject = first;
           await this.onProjectSelect();
         }
       } catch (e) {
@@ -283,13 +302,29 @@ export default defineComponent({
       }
     },
 
+    async autoArrange() {
+      try {
+        await this.editor?.layout(true);
+      } catch (e) {
+        console.error("Failed to auto arrange:", e);
+      }
+    },
+
+    applyFocusProject() {
+      this.editor?.setFocusProject(this.focusProjectId || null);
+    },
+
     async applyProjectData(data: ProjectData) {
       this.statuses = data.statuses ?? this.defaultStatuses();
       this.featureProjects = data.featureProjects ?? [];
+      if (this.focusProjectId && !this.featureProjects.some((p) => p.id === this.focusProjectId)) {
+        this.focusProjectId = "";
+      }
       const withStatuses = { ...data, statuses: this.statuses, featureProjects: this.featureProjects };
       await this.editor?.importState(withStatuses);
       this.editor?.setStatuses(this.statuses);
       this.editor?.setProjects(this.featureProjects);
+      this.editor?.setFocusProject(this.focusProjectId || null);
     },
 
     onSetStatus(nodeId: string, statusId: string | null) {

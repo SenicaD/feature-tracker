@@ -3,6 +3,7 @@ import { AreaPlugin, AreaExtensions } from "rete-area-plugin";
 import { ConnectionPlugin, Presets as ConnectionPresets } from "rete-connection-plugin";
 import { VuePlugin, Presets, type VueArea2D } from "rete-vue-plugin";
 import { getDOMSocketPosition } from "rete-render-utils";
+import { AutoArrangePlugin, Presets as ArrangePresets, ArrangeAppliers } from "rete-auto-arrange-plugin";
 import type { ProjectData, NodeData, ConnectionData, StatusDef, ProjectDef } from "./api";
 import CustomNode from "../components/CustomNode.vue";
 
@@ -13,6 +14,7 @@ export type NodeAttribute = {
 
 export class FeatureNode extends ClassicPreset.Node {
   width = 180;
+  height = 160;
   name: string;
   attributes: NodeAttribute[] = [];
   statusId: string | null = null;
@@ -37,7 +39,9 @@ export type EditorController = {
   setNodeStatus: (nodeId: string, statusId: string | null) => void;
   setProjects: (projects: ProjectDef[]) => void;
   setNodeProject: (nodeId: string, projectId: string | null) => void;
+  setFocusProject: (projectId: string | null) => void;
   getNodes: () => FeatureNode[];
+  layout: (animate?: boolean) => Promise<void>;
   exportState: () => Promise<ProjectData>;
   importState: (data: ProjectData) => Promise<void>;
   clear: () => Promise<void>;
@@ -53,6 +57,7 @@ export async function createEditor(
   const area = new AreaPlugin<Schemes, AreaExtra>(container);
   const connection = new ConnectionPlugin<Schemes, AreaExtra>();
   const render = new VuePlugin<Schemes, AreaExtra>();
+  const arrange = new AutoArrangePlugin<Schemes>();
 
   render.addPreset(
     Presets.classic.setup({
@@ -61,19 +66,37 @@ export async function createEditor(
           return CustomNode;
         }
       },
-      socketPositionWatcher: getDOMSocketPosition()
+      socketPositionWatcher: getDOMSocketPosition({
+        offset({ x, y }, _nodeId, side) {
+          return {
+            x: x + 8 * (side === "input" ? -1 : 1),
+            y
+          };
+        }
+      })
     })
   );
   connection.addPreset(ConnectionPresets.classic.setup());
+  arrange.addPreset(ArrangePresets.classic.setup());
 
   editor.use(area);
   area.use(connection);
   area.use(render);
+  area.use(arrange);
+
+  const applier = new ArrangeAppliers.TransitionApplier<Schemes, never>({
+    duration: 500,
+    timingFunction: (t) => t,
+    async onTick() {
+      await AreaExtensions.zoomAt(area, editor.getNodes());
+    }
+  });
 
   let statuses: StatusDef[] = [];
   const statusIds = () => new Set(statuses.map((s) => s.id));
   let featureProjects: ProjectDef[] = [];
   const projectIds = () => new Set(featureProjects.map((p) => p.id));
+  let focusProjectId: string | null = null;
 
   function hexToRgba(hex: string, alpha: number) {
     const value = hex.replace("#", "");
@@ -131,6 +154,27 @@ export async function createEditor(
     }
   }
 
+  function applyFocusStyle(nodeId: string, projectId: string | null) {
+    const view = area.nodeViews.get(nodeId);
+    if (!view) return;
+    const el = view.element as HTMLElement;
+    if (!focusProjectId) {
+      el.classList.remove("is-dim");
+      el.style.removeProperty("opacity");
+      el.style.removeProperty("filter");
+      return;
+    }
+    if (projectId !== focusProjectId) {
+      el.classList.add("is-dim");
+      el.style.opacity = "0.3";
+      el.style.filter = "saturate(0.6)";
+    } else {
+      el.classList.remove("is-dim");
+      el.style.removeProperty("opacity");
+      el.style.removeProperty("filter");
+    }
+  }
+
   function setProjects(newProjects: ProjectDef[]) {
     featureProjects = newProjects;
     const allowed = projectIds();
@@ -139,6 +183,7 @@ export async function createEditor(
         node.projectId = null;
       }
       applyProjectStyle(node.id, node.projectId);
+      applyFocusStyle(node.id, node.projectId);
     }
   }
 
@@ -156,6 +201,14 @@ export async function createEditor(
     const allowed = projectIds();
     node.projectId = projectId && allowed.has(projectId) ? projectId : null;
     applyProjectStyle(node.id, node.projectId);
+    applyFocusStyle(node.id, node.projectId);
+  }
+
+  function setFocusProject(projectId: string | null) {
+    focusProjectId = projectId;
+    for (const node of editor.getNodes() as FeatureNode[]) {
+      applyFocusStyle(node.id, node.projectId);
+    }
   }
 
   AreaExtensions.selectableNodes(
@@ -211,6 +264,7 @@ export async function createEditor(
     await area.translate(node.id, { x: 100 + count * 40, y: 100 });
     applyStatusStyle(node.id, null);
     applyProjectStyle(node.id, null);
+    applyFocusStyle(node.id, null);
   }
 
   // Seed one node
@@ -280,6 +334,7 @@ export async function createEditor(
       await area.translate(node.id, nodeData.position);
       applyStatusStyle(node.id, node.statusId);
       applyProjectStyle(node.id, node.projectId);
+      applyFocusStyle(node.id, node.projectId);
       idMap.set(nodeData.id, node.id);
     }
 
@@ -299,12 +354,18 @@ export async function createEditor(
     // Re-run to clear any orphaned assignments now that nodes exist
     setStatuses(statuses);
     setProjects(featureProjects);
+    setFocusProject(focusProjectId);
 
     if (editor.getNodes().length > 0) {
       AreaExtensions.zoomAt(area, editor.getNodes());
     }
 
     count = data.nodes.length;
+  }
+
+  async function layout(animate = true) {
+    await arrange.layout({ applier: animate ? applier : undefined });
+    AreaExtensions.zoomAt(area, editor.getNodes());
   }
 
   return {
@@ -319,9 +380,11 @@ export async function createEditor(
     setNodeStatus,
     setProjects,
     setNodeProject,
+    setFocusProject,
     getNodes() {
       return editor.getNodes() as FeatureNode[];
     },
+    layout,
     exportState,
     importState,
     clear,

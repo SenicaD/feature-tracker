@@ -22,11 +22,16 @@
       "id": "foundation-1770317169043",
       "name": "Foundation",
       "color": "#c70000"
+    },
+    {
+      "id": "digitalplaybook-1770319806139",
+      "name": "DigitalPlaybook",
+      "color": "#38bdf8"
     }
   ],
   "nodes": [
     {
-      "id": "3952c4cda1e21f46",
+      "id": "fdb61cb3779e01d5",
       "label": "Feature 1",
       "name": "Feature 1",
       "statusId": null,
@@ -38,16 +43,16 @@
         }
       ],
       "position": {
-        "x": -305.0,
-        "y": -19.0
+        "x": 27.0,
+        "y": 87.0
       }
     },
     {
-      "id": "1ab5f98a2d155f73",
+      "id": "e869533a6e131c54",
       "label": "Feature 2",
       "name": "Feature 2",
       "statusId": null,
-      "projectId": null,
+      "projectId": "foundation-1770317169043",
       "attributes": [
         {
           "key": "test",
@@ -55,16 +60,28 @@
         }
       ],
       "position": {
-        "x": 180.0,
-        "y": 100.0
+        "x": 257.0,
+        "y": 12.0
+      }
+    },
+    {
+      "id": "f585ca53dca8f9b5",
+      "label": "Feature 3",
+      "name": "Feature 3",
+      "statusId": null,
+      "projectId": "digitalplaybook-1770319806139",
+      "attributes": [],
+      "position": {
+        "x": 543.0,
+        "y": 103.0
       }
     }
   ],
   "connections": [
     {
-      "sourceId": "3952c4cda1e21f46",
+      "sourceId": "fdb61cb3779e01d5",
       "sourceOutput": "out",
-      "targetId": "1ab5f98a2d155f73",
+      "targetId": "e869533a6e131c54",
       "targetInput": "in"
     }
   ]

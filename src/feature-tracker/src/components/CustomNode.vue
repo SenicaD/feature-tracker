@@ -132,6 +132,11 @@ export default defineComponent({
   box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
 }
 
+.node.is-dim {
+  opacity: 0.3;
+  filter: saturate(0.6);
+}
+
 .title {
   color: #f8fafc;
   font-size: 16px;
