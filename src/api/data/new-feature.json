@@ -1,21 +1,59 @@
 {
   "name": "new-feature",
+  "statuses": [
+    {
+      "id": "implemented",
+      "name": "Implemented",
+      "color": "#10B981"
+    },
+    {
+      "id": "intended",
+      "name": "Intended",
+      "color": "#3B82F6"
+    },
+    {
+      "id": "aspirational",
+      "name": "Aspirational",
+      "color": "#A855F7"
+    }
+  ],
+  "featureProjects": [
+    {
+      "id": "foundation-1770317169043",
+      "name": "Foundation",
+      "color": "#c70000"
+    }
+  ],
   "nodes": [
     {
-      "id": "1afd8d2853efd29e",
+      "id": "3952c4cda1e21f46",
       "label": "Feature 1",
       "name": "Feature 1",
-      "attributes": [],
+      "statusId": null,
+      "projectId": "foundation-1770317169043",
+      "attributes": [
+        {
+          "key": "test",
+          "value": "test"
+        }
+      ],
       "position": {
-        "x": -181.0,
-        "y": 20.0
+        "x": -305.0,
+        "y": -19.0
       }
     },
     {
-      "id": "c96251c54deaf4b1",
+      "id": "1ab5f98a2d155f73",
       "label": "Feature 2",
       "name": "Feature 2",
-      "attributes": [],
+      "statusId": null,
+      "projectId": null,
+      "attributes": [
+        {
+          "key": "test",
+          "value": "test"
+        }
+      ],
       "position": {
         "x": 180.0,
         "y": 100.0
@@ -24,9 +62,9 @@
   ],
   "connections": [
     {
-      "sourceId": "1afd8d2853efd29e",
+      "sourceId": "3952c4cda1e21f46",
       "sourceOutput": "out",
-      "targetId": "c96251c54deaf4b1",
+      "targetId": "1ab5f98a2d155f73",
       "targetInput": "in"
     }
   ]

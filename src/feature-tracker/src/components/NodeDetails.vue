@@ -1,76 +1,189 @@
 <template>
-  <div class="panel" :class="{ open: !!node }">
-    <div class="header">
-      <h3>Node Details</h3>
-      <button class="close" @click="close">Close</button>
-    </div>
-
-    <div v-if="node" class="content">
-      <div class="field">
-        <label>Name</label>
-        <input
-          type="text"
-          :value="node.name"
-          @input="onNameChange"
-        />
+  <div class="pointer-events-none fixed inset-y-0 right-0 flex">
+    <div
+      class="pointer-events-auto w-80 bg-slate-900 border-l border-slate-800 shadow-xl transform transition-transform duration-200"
+      :class="node ? 'translate-x-0' : 'translate-x-full'"
+    >
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800">
+        <h3 class="text-sm font-semibold text-slate-100">Node Details</h3>
+        <button
+          class="text-xs px-2 py-1 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800"
+          @click="close"
+        >
+          Close
+        </button>
       </div>
 
-      <div class="field">
-        <label>Node ID</label>
-        <div class="readonly">{{ node.id }}</div>
+      <div v-if="node" class="p-4 space-y-4 text-sm">
+        <div class="space-y-1">
+          <label class="text-xs uppercase tracking-wide text-slate-400">Name</label>
+          <input
+            type="text"
+            :value="node.name"
+            @input="onNameChange"
+            class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs uppercase tracking-wide text-slate-400">Node ID</label>
+          <div class="rounded-md border border-slate-800 bg-slate-950 px-3 py-2 text-slate-400 font-mono text-xs">
+            {{ node.id }}
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs uppercase tracking-wide text-slate-400">Status</label>
+          <select
+            :value="node.statusId || ''"
+            @change="onStatusChange"
+            class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+          >
+            <option value="">Unset</option>
+            <option v-for="status in statuses" :key="status.id" :value="status.id">
+              {{ status.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-xs uppercase tracking-wide text-slate-400">Project</label>
+          <input
+            v-model="projectName"
+            list="project-options"
+            type="text"
+            placeholder="Project name"
+            class="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            @blur="applyProject"
+          />
+          <datalist id="project-options">
+            <option v-for="project in projects" :key="project.id" :value="project.name" />
+          </datalist>
+
+          <div class="flex items-center gap-2">
+            <input
+              v-model="projectColor"
+              type="color"
+              class="h-10 w-12 rounded-md border border-slate-700 bg-slate-950 p-1"
+              @change="applyProject"
+            />
+            <button
+              class="text-xs px-3 py-2 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800"
+              @click="applyProject"
+            >
+              Apply
+            </button>
+            <button
+              class="text-xs px-3 py-2 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800"
+              @click="clearProject"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+          <label class="text-xs uppercase tracking-wide text-slate-400">Attributes</label>
+          <button
+            class="text-xs px-2 py-1 rounded-md border border-slate-700 text-slate-200 hover:bg-slate-800"
+            @click="addAttribute"
+          >
+            + Add
+          </button>
+        </div>
+
+        <div v-if="node.attributes.length === 0" class="text-slate-500 text-xs italic">
+          No attributes defined.
+        </div>
+
+        <div
+          v-for="(attr, index) in node.attributes"
+          :key="index"
+          class="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            class="flex-1 rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="Key"
+            :value="attr.key"
+            @input="(e) => onAttrKeyChange(index, e)"
+          />
+          <input
+            type="text"
+            class="flex-[2] rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+            placeholder="Value"
+            :value="attr.value"
+            @input="(e) => onAttrValueChange(index, e)"
+          />
+          <button
+            class="text-slate-400 hover:text-red-400 px-2"
+            @click="removeAttribute(index)"
+          >
+            &times;
+          </button>
+        </div>
       </div>
 
-      <div class="section-header">
-        <label>Attributes</label>
-        <button class="add-btn" @click="addAttribute">+ Add</button>
+      <div v-else class="p-4 text-sm text-slate-500">
+        Select a node to see its details.
       </div>
-
-      <div v-if="node.attributes.length === 0" class="empty-attrs">
-        No attributes defined.
-      </div>
-
-      <div
-        v-for="(attr, index) in node.attributes"
-        :key="index"
-        class="attribute"
-      >
-        <input
-          type="text"
-          class="attr-key"
-          placeholder="Key"
-          :value="attr.key"
-          @input="(e) => onAttrKeyChange(index, e)"
-        />
-        <input
-          type="text"
-          class="attr-value"
-          placeholder="Value"
-          :value="attr.value"
-          @input="(e) => onAttrValueChange(index, e)"
-        />
-        <button class="remove-btn" @click="removeAttribute(index)">&times;</button>
-      </div>
-    </div>
-    <div v-else class="empty">
-      Select a node to see its details.
     </div>
   </div>
 </template>
 
 <script lang="ts">
 
-import { defineComponent } from "vue";
+import { defineComponent, type PropType, ref, watch } from "vue";
 import { FeatureNode } from "../typescript/basic";
+import type { StatusDef, ProjectDef } from "../typescript/api";
 
 export default defineComponent({
   props: {
     node: {
-      type: Object as () => FeatureNode | null,
+      type: Object as PropType<FeatureNode | null>,
+      required: true
+    },
+    statuses: {
+      type: Array as PropType<StatusDef[]>,
+      default: () => []
+    },
+    projects: {
+      type: Array as PropType<ProjectDef[]>,
+      default: () => []
+    },
+    onSetStatus: {
+      type: Function as PropType<(nodeId: string, statusId: string | null) => void>,
+      required: true
+    },
+    onSetProject: {
+      type: Function as PropType<(nodeId: string, name: string | null, color: string | null) => void>,
       required: true
     }
   },
 
   setup(props, { emit }) {
+    const projectName = ref("");
+    const projectColor = ref("#38bdf8");
+
+    function syncProjectFields() {
+      if (!props.node) {
+        projectName.value = "";
+        projectColor.value = "#38bdf8";
+        return;
+      }
+      const project = props.projects.find((p) => p.id === (props.node as any).projectId);
+      if (project) {
+        projectName.value = project.name;
+        projectColor.value = project.color;
+      } else {
+        projectName.value = "";
+        projectColor.value = "#38bdf8";
+      }
+    }
+
+    watch(() => props.node, syncProjectFields, { immediate: true });
+    watch(() => props.projects, syncProjectFields, { deep: true });
+
     function onNameChange(e: Event) {
       if (!props.node) return;
       const input = e.target as HTMLInputElement;
@@ -106,168 +219,39 @@ export default defineComponent({
       emit("update:node", null);
     }
 
+    function onStatusChange(e: Event) {
+      if (!props.node) return;
+      const select = e.target as HTMLSelectElement;
+      const value = select.value;
+      const statusId = value === "" ? null : value;
+      props.onSetStatus(props.node.id, statusId);
+    }
+
+    function applyProject() {
+      if (!props.node) return;
+      props.onSetProject(props.node.id, projectName.value, projectColor.value);
+    }
+
+    function clearProject() {
+      if (!props.node) return;
+      projectName.value = "";
+      props.onSetProject(props.node.id, null, null);
+    }
+
     return {
+      projectName,
+      projectColor,
       onNameChange,
       addAttribute,
       removeAttribute,
       onAttrKeyChange,
       onAttrValueChange,
+      onStatusChange,
+      applyProject,
+      clearProject,
       close
     };
   }
 });
 
 </script>
-
-<style scoped>
-.panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 320px;
-  height: 100vh;
-  background: #1e1e1e;
-  color: #fff;
-  transform: translateX(100%);
-  transition: transform 0.25s ease;
-  border-left: 1px solid #333;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel.open {
-  transform: translateX(0);
-}
-
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #333;
-}
-
-.header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.close {
-  background: transparent;
-  color: #fff;
-  border: 1px solid #4a4a4a;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.content {
-  padding: 16px;
-}
-
-.field {
-  margin-top: 12px;
-}
-
-.field label {
-  display: block;
-  font-size: 12px;
-  color: #9aa0a6;
-  margin-bottom: 4px;
-}
-
-input {
-  width: 100%;
-  background: #2d2d2d;
-  color: #fff;
-  border: 1px solid #4a4a4a;
-  border-radius: 4px;
-  padding: 8px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-input:focus {
-  outline: none;
-  border-color: #42b883;
-}
-
-.empty {
-  padding: 16px;
-  color: #9aa0a6;
-  font-size: 14px;
-}
-
-.readonly {
-  color: #9aa0a6;
-  font-size: 14px;
-  font-family: monospace;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #333;
-}
-
-.section-header label {
-  font-size: 12px;
-  color: #9aa0a6;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.add-btn {
-  background: transparent;
-  color: #42b883;
-  border: 1px solid #42b883;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.add-btn:hover {
-  background: #42b88320;
-}
-
-.empty-attrs {
-  color: #6b7280;
-  font-size: 13px;
-  margin-top: 12px;
-  font-style: italic;
-}
-
-.attribute {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-  align-items: center;
-}
-
-.attr-key {
-  flex: 1;
-}
-
-.attr-value {
-  flex: 2;
-}
-
-.remove-btn {
-  background: transparent;
-  color: #ef4444;
-  border: none;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-}
-
-.remove-btn:hover {
-  color: #f87171;
-}
-</style>

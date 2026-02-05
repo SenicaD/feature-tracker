@@ -2,7 +2,9 @@ import { NodeEditor, type GetSchemes, ClassicPreset } from "rete";
 import { AreaPlugin, AreaExtensions } from "rete-area-plugin";
 import { ConnectionPlugin, Presets as ConnectionPresets } from "rete-connection-plugin";
 import { VuePlugin, Presets, type VueArea2D } from "rete-vue-plugin";
-import type { ProjectData, NodeData, ConnectionData } from "./api";
+import { getDOMSocketPosition } from "rete-render-utils";
+import type { ProjectData, NodeData, ConnectionData, StatusDef, ProjectDef } from "./api";
+import CustomNode from "../components/CustomNode.vue";
 
 export type NodeAttribute = {
   key: string;
@@ -13,6 +15,8 @@ export class FeatureNode extends ClassicPreset.Node {
   width = 180;
   name: string;
   attributes: NodeAttribute[] = [];
+  statusId: string | null = null;
+  projectId: string | null = null;
 
   constructor(label: string) {
     super(label);
@@ -29,6 +33,11 @@ export type EditorController = {
   addNode: () => Promise<void>;
   onNodeClick: (cb: (node: FeatureNode) => void) => void;
   onCanvasClick: (cb: () => void) => void;
+  setStatuses: (statuses: StatusDef[]) => void;
+  setNodeStatus: (nodeId: string, statusId: string | null) => void;
+  setProjects: (projects: ProjectDef[]) => void;
+  setNodeProject: (nodeId: string, projectId: string | null) => void;
+  getNodes: () => FeatureNode[];
   exportState: () => Promise<ProjectData>;
   importState: (data: ProjectData) => Promise<void>;
   clear: () => Promise<void>;
@@ -45,12 +54,109 @@ export async function createEditor(
   const connection = new ConnectionPlugin<Schemes, AreaExtra>();
   const render = new VuePlugin<Schemes, AreaExtra>();
 
-  render.addPreset(Presets.classic.setup());
+  render.addPreset(
+    Presets.classic.setup({
+      customize: {
+        node() {
+          return CustomNode;
+        }
+      },
+      socketPositionWatcher: getDOMSocketPosition()
+    })
+  );
   connection.addPreset(ConnectionPresets.classic.setup());
 
   editor.use(area);
   area.use(connection);
   area.use(render);
+
+  let statuses: StatusDef[] = [];
+  const statusIds = () => new Set(statuses.map((s) => s.id));
+  let featureProjects: ProjectDef[] = [];
+  const projectIds = () => new Set(featureProjects.map((p) => p.id));
+
+  function hexToRgba(hex: string, alpha: number) {
+    const value = hex.replace("#", "");
+    if (value.length !== 6) return "";
+    const r = parseInt(value.slice(0, 2), 16);
+    const g = parseInt(value.slice(2, 4), 16);
+    const b = parseInt(value.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function applyStatusStyle(nodeId: string, statusId: string | null) {
+    const view = area.nodeViews.get(nodeId);
+    if (!view) return;
+    const el = view.element as HTMLElement;
+    const status = statuses.find((s) => s.id === statusId);
+    if (status) {
+      el.classList.add("has-status");
+      el.style.setProperty("--status-color", status.color);
+    } else {
+      el.classList.remove("has-status");
+      el.style.removeProperty("--status-color");
+    }
+  }
+
+  function setStatuses(newStatuses: StatusDef[]) {
+    statuses = newStatuses;
+    const allowed = statusIds();
+    // Re-apply to all nodes
+    for (const node of editor.getNodes() as FeatureNode[]) {
+      if (node.statusId && !allowed.has(node.statusId)) {
+        node.statusId = null;
+      }
+      applyStatusStyle(node.id, node.statusId);
+    }
+  }
+
+  function applyProjectStyle(nodeId: string, projectId: string | null) {
+    const view = area.nodeViews.get(nodeId);
+    if (!view) return;
+    const el = view.element as HTMLElement;
+    const project = featureProjects.find((p) => p.id === projectId);
+    if (project) {
+      el.classList.add("has-project");
+      el.style.setProperty("--project-color", project.color);
+      const tint = hexToRgba(project.color, 0.2);
+      if (tint) {
+        el.style.setProperty("--node-bg", tint);
+      }
+      el.style.setProperty("--node-border", project.color);
+    } else {
+      el.classList.remove("has-project");
+      el.style.removeProperty("--project-color");
+      el.style.removeProperty("--node-bg");
+      el.style.removeProperty("--node-border");
+    }
+  }
+
+  function setProjects(newProjects: ProjectDef[]) {
+    featureProjects = newProjects;
+    const allowed = projectIds();
+    for (const node of editor.getNodes() as FeatureNode[]) {
+      if (node.projectId && !allowed.has(node.projectId)) {
+        node.projectId = null;
+      }
+      applyProjectStyle(node.id, node.projectId);
+    }
+  }
+
+  function setNodeStatus(nodeId: string, statusId: string | null) {
+    const node = editor.getNode(nodeId) as FeatureNode | undefined;
+    if (!node) return;
+    const allowed = statusIds();
+    node.statusId = statusId && allowed.has(statusId) ? statusId : null;
+    applyStatusStyle(node.id, node.statusId);
+  }
+
+  function setNodeProject(nodeId: string, projectId: string | null) {
+    const node = editor.getNode(nodeId) as FeatureNode | undefined;
+    if (!node) return;
+    const allowed = projectIds();
+    node.projectId = projectId && allowed.has(projectId) ? projectId : null;
+    applyProjectStyle(node.id, node.projectId);
+  }
 
   AreaExtensions.selectableNodes(
     area,
@@ -103,6 +209,8 @@ export async function createEditor(
 
     await editor.addNode(node);
     await area.translate(node.id, { x: 100 + count * 40, y: 100 });
+    applyStatusStyle(node.id, null);
+    applyProjectStyle(node.id, null);
   }
 
   // Seed one node
@@ -118,6 +226,8 @@ export async function createEditor(
         id: node.id,
         label: node.label,
         name: node.name,
+        statusId: node.statusId ?? null,
+        projectId: node.projectId ?? null,
         attributes: [...node.attributes],
         position,
       });
@@ -133,7 +243,7 @@ export async function createEditor(
       });
     }
 
-    return { name: "", nodes, connections };
+    return { name: "", statuses, featureProjects, nodes, connections } as ProjectData;
   }
 
   async function clear() {
@@ -149,18 +259,27 @@ export async function createEditor(
   async function importState(data: ProjectData) {
     await clear();
 
+    const incomingStatuses = data.statuses ?? [];
+    const incomingProjects = data.featureProjects ?? [];
+    setStatuses(incomingStatuses);
+    setProjects(incomingProjects);
+
     const idMap = new Map<string, string>();
 
     for (const nodeData of data.nodes) {
       const node = new FeatureNode(nodeData.name);
       node.label = nodeData.label;
       node.attributes = [...nodeData.attributes];
+      node.statusId = nodeData.statusId ?? null;
+      node.projectId = nodeData.projectId ?? null;
       node.addInput("in", new ClassicPreset.Input(socket));
       node.addOutput("out", new ClassicPreset.Output(socket));
       node.addControl("text", new ClassicPreset.InputControl("text", { initial: "" }));
 
       await editor.addNode(node);
       await area.translate(node.id, nodeData.position);
+      applyStatusStyle(node.id, node.statusId);
+      applyProjectStyle(node.id, node.projectId);
       idMap.set(nodeData.id, node.id);
     }
 
@@ -177,6 +296,10 @@ export async function createEditor(
       }
     }
 
+    // Re-run to clear any orphaned assignments now that nodes exist
+    setStatuses(statuses);
+    setProjects(featureProjects);
+
     if (editor.getNodes().length > 0) {
       AreaExtensions.zoomAt(area, editor.getNodes());
     }
@@ -191,6 +314,13 @@ export async function createEditor(
     },
     onCanvasClick(cb) {
       canvasClickHandler = cb;
+    },
+    setStatuses,
+    setNodeStatus,
+    setProjects,
+    setNodeProject,
+    getNodes() {
+      return editor.getNodes() as FeatureNode[];
     },
     exportState,
     importState,

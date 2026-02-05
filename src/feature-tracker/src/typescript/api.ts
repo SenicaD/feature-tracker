@@ -1,5 +1,17 @@
 const API_BASE = "http://localhost:8000";
 
+export interface StatusDef {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface ProjectDef {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface NodeAttribute {
   key: string;
   value: string;
@@ -14,6 +26,8 @@ export interface NodeData {
   id: string;
   label: string;
   name: string;
+  statusId?: string | null;
+  projectId?: string | null;
   attributes: NodeAttribute[];
   position: NodePosition;
 }
@@ -27,9 +41,20 @@ export interface ConnectionData {
 
 export interface ProjectData {
   name: string;
+  statuses: StatusDef[];
+  featureProjects: ProjectDef[];
   nodes: NodeData[];
   connections: ConnectionData[];
 }
+
+export const STATUS_PALETTE = [
+  "#EF4444",
+  "#F59E0B",
+  "#10B981",
+  "#3B82F6",
+  "#A855F7",
+  "#EC4899",
+];
 
 export async function listProjects(): Promise<string[]> {
   const res = await fetch(`${API_BASE}/projects`);

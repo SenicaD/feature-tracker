@@ -5,6 +5,30 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>feature-tracker</title>
+    <script>
+      window.tailwind = window.tailwind || {};
+      window.tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              border: "#1f2937",
+              input: "#1f2937",
+              background: "#0f172a",
+              foreground: "#e2e8f0",
+              primary: "#38bdf8",
+              muted: "#94a3b8",
+            },
+            borderRadius: {
+              lg: "12px",
+              md: "10px",
+              sm: "8px",
+            },
+          },
+        },
+      };
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body>
     <div id="app"></div>
